@@ -2,7 +2,8 @@ version: "3.8"
 
 services:
   superset:
-    image: $IMAGE:$TAG
+    image: superset-keycloak-oidc:latest
+    build: .
     container_name: superset
     restart: unless-stopped
     ports:
