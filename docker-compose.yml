@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  superset:
+    image: $IMAGE:$TAG
+    container_name: superset
+    restart: unless-stopped
+    ports:
+      - "${SUPERSET_WEBSERVER_PORT}:8088"
+    env_file:
+      - .env
+    environment:
+      - SUPERSET_WEBSERVER_URL=${SUPERSET_WEBSERVER_URL}
+      - SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py
+      - FLASK_APP=superset.app:create_app()
+      - PYTHONPATH=/app/pythonpath:/app
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: superset_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  redis_data:
