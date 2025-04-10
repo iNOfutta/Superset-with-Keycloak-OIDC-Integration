@@ -203,6 +203,12 @@ The deployment consists of three main services:
    - Enable Flask-OIDC debug logging
    - Check token validation
    - Verify role mapping
+   - **Important**: Check Keycloak URL realm construction
+     - Different Keycloak versions may construct realm URLs differently
+     - Some versions use: `${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}`
+     - Others use: `${KEYCLOAK_BASE_URL}/auth/realms/${KEYCLOAK_REALM}`
+     - Ensure your `client_secret.json` matches your Keycloak version's URL structure
+     - This mismatch can cause authentication failures
 
 3. **Redis Connection**
    - Test Redis connectivity
