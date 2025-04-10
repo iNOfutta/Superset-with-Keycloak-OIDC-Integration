@@ -104,8 +104,63 @@ ADMIN_PASSWORD=admin
    - Web Origins: \*
 
 2. Configure client roles:
+
    - Create roles: Admin, Alpha, Gamma
    - Map roles to users
+
+3. **Critical Role Configuration**:
+
+   **Method 1 (Recommended) - Token Claim Name Configuration**:
+
+   - Navigate to Realm Settings → Client Scopes
+   - For realm roles:
+     - Select the `roles` scope
+     - Under the Mappers tab, configure the role mapper with:
+       - Token Claim Name: `realm_access.roles`
+       - Claim JSON Type: String
+       - Add to ID token: ON
+       - Add to access token: ON
+       - Add to userinfo: ON
+   - For client roles:
+     - Select the client-specific scope
+     - Under the Mappers tab, configure the role mapper with:
+       - Token Claim Name: `resource_access.${client_id}.roles`
+       - Claim JSON Type: String
+       - Add to ID token: ON
+       - Add to access token: ON
+       - Add to userinfo: ON
+   - This method ensures proper role structure in the JWT token and userinfo response
+
+   **Method 2 - Add to userinfo Configuration**:
+
+   - Navigate to Realm Settings → Client Scopes
+   - For both realm roles and client roles:
+     - Select the appropriate scope (e.g., `roles` or client-specific scope)
+     - Under the Mappers tab, ensure the role mapper has "Add to userinfo" enabled
+     - This configuration is essential for proper role propagation to Superset
+     - Without this setting, the `keycloak_security_manager.py` will default to assigning the Gamma role regardless of the user's actual Keycloak roles
+
+4. **Role Mapping Verification**:
+   - Test the configuration by checking the userinfo endpoint
+   - Verify that roles appear in the JWT token and userinfo response
+   - Use the following curl command to test:
+     ```bash
+     curl -X GET "${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}"
+     ```
+   - The response should include the user's roles in the expected structure:
+     ```json
+     {
+       "realm_access": {
+         "roles": ["role1", "role2"]
+       },
+       "resource_access": {
+         "superset": {
+           "roles": ["client_role1", "client_role2"]
+         }
+       }
+     }
+     ```
 
 ### Flask-OIDC Configuration
 
@@ -362,7 +417,6 @@ If you experience issues specific to the login flow (e.g., OIDC errors or Keyclo
 3. Submit a pull request
 
 ## License
-
 
 ## Support
 
