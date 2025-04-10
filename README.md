@@ -363,7 +363,6 @@ If you experience issues specific to the login flow (e.g., OIDC errors or Keyclo
 
 ## License
 
-[Your License]
 
 ## Support
 
