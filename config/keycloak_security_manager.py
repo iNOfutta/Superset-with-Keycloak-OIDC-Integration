@@ -2,15 +2,15 @@ from flask_appbuilder.security.manager import AUTH_OID
 from superset.security import SupersetSecurityManager
 from flask_oidc import OpenIDConnect
 from flask_appbuilder.security.views import AuthOIDView
-from flask_login import login_user
+from flask_login import login_user, logout_user
 from urllib.parse import quote
-from flask_appbuilder.views import ModelView, SimpleFormView, expose
+from flask_appbuilder.views import expose
 from flask import (
     redirect,
     request,
-    g
+    g,
+    session
 )
-import json
 import os
 
 class OIDCSecurityManager(SupersetSecurityManager):
@@ -21,8 +21,36 @@ class OIDCSecurityManager(SupersetSecurityManager):
             self.oid = OpenIDConnect(self.appbuilder.get_app)
         self.authoidview = AuthOIDCView
 
+    def is_authenticated(self):
+        if not super().is_authenticated():
+            return False
+            
+        if hasattr(self, 'oid'):
+            try:
+                self.oid.user_getfield('email')
+                return True
+            except Exception:
+                self.invalidate_session(g.user.id if hasattr(g, 'user') and g.user else None)
+                return False
+        return True
+
+    def invalidate_session(self, user_id):
+        try:
+            session.clear()
+            logout_user()
+            
+            if hasattr(self, 'oid'):
+                self.oid.logout()
+                
+            if hasattr(self.appbuilder.app, 'cache'):
+                cache_key = f"user_session_{user_id}"
+                self.appbuilder.app.cache.delete(cache_key)
+                
+            return True
+        except Exception:
+            return False
+
     def extract_roles(self, user_info):
-        """Extract and map roles from Keycloak user info."""
         roles = set()
         keycloak_roles = user_info.get('roles', [])
         realm_access = user_info.get('realm_access', {})
@@ -40,12 +68,12 @@ class OIDCSecurityManager(SupersetSecurityManager):
                     break
 
         if not mapped_roles:
-            mapped_roles.add(self.find_role(self.auth_user_registration_role))
+            default_role = self.find_role(self.auth_user_registration_role)
+            mapped_roles.add(default_role)
 
         return list(mapped_roles)
 
     def update_user_roles(self, user, new_roles):
-        """Update the user's roles in Superset."""
         if not user:
             return
         current_roles = set(user.roles)
@@ -71,6 +99,9 @@ class AuthOIDCView(AuthOIDView):
         @oidc.require_login
         def handle_login():
             try:
+                if not oidc.user_getfield('email'):
+                    return redirect('/login')
+
                 email = oidc.user_getfield('email')
                 if not email:
                     return redirect('/login')
@@ -92,10 +123,14 @@ class AuthOIDCView(AuthOIDView):
                     sm.update_user_roles(user, updated_roles)
 
                 if user and user.is_active:
-                    login_user(user, remember=True)
+                    sm.invalidate_session(user.id)
+                    login_user(user, remember=False)
                     g.user = user
-
-                return redirect(self.appbuilder.get_url_for_index)
+                    return redirect(self.appbuilder.get_url_for_index)
+                elif user and not user.is_active:
+                    return redirect('/login')
+                else:
+                    return redirect('/login')
             except Exception:
                 return redirect('/login')
 
@@ -103,9 +138,33 @@ class AuthOIDCView(AuthOIDView):
 
     @expose('/logout/', methods=['GET', 'POST'])
     def logout(self):
-        oidc = self.appbuilder.sm.oid
-        oidc.logout()
-        super(AuthOIDCView, self).logout()
-        redirect_url = request.url_root.strip('/') + self.appbuilder.get_url_for_login
-        return redirect(
-            os.environ.get("KEYCLOAK_BASE_URL") + '/realms/' + os.environ.get("KEYCLOAK_REALM") + '/protocol/openid-connect/logout?redirect_uri=' + quote(redirect_url))
+        try:
+            user_id = g.user.id if hasattr(g, 'user') and g.user else None
+            oidc = self.appbuilder.sm.oid
+            
+            if user_id:
+                self.appbuilder.sm.invalidate_session(user_id)
+            
+            redirect_uri = request.host_url.rstrip('/') + '/login/'
+            keycloak_logout_url = (
+                oidc.client_secrets.get('issuer') + 
+                '/protocol/openid-connect/logout' +
+                '?redirect_uri=' + quote(redirect_uri)
+            )
+            
+            response = redirect(keycloak_logout_url)
+            
+            for key in request.cookies:
+                response.delete_cookie(key)
+                
+            response.delete_cookie('oidc_id_token')
+            response.delete_cookie('oidc_access_token')
+            response.delete_cookie('oidc_refresh_token')
+            
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            
+            return response
+        except Exception:
+            return redirect('/login/')

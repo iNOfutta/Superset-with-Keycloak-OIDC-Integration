@@ -118,6 +118,7 @@ ADMIN_PASSWORD=admin
      - Without this setting, the `keycloak_security_manager.py` will default to assigning the Gamma role regardless of the user's actual Keycloak roles
 
 4. **Role Mapping Verification**:
+
    - Test the configuration by checking the userinfo endpoint
    - Verify that roles appear in the JWT token and userinfo response
    - Use the following curl command to test:
@@ -126,6 +127,14 @@ ADMIN_PASSWORD=admin
           -H "Authorization: Bearer ${ACCESS_TOKEN}"
      ```
    - The response should include the user's roles in the `roles` claim
+
+5. **Logout Configuration**:
+   - Navigate to Client Settings → Capability Config
+   - Enable the following settings:
+     - Backchannel Logout: Ensures all sessions are terminated when a user logs out
+     - Frontchannel Logout: Handles browser-based logout properly
+     - Full Scope Allowed: Ensures all necessary scopes are available for proper logout functionality
+   - These settings are crucial for proper session termination and security
 
 ### Flask-OIDC Configuration
 
