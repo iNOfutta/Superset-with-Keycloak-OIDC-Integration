@@ -1,21 +1,22 @@
 # Superset with Keycloak Integration
 
-A production-ready deployment of Apache Superset with Keycloak OpenID Connect (OIDC) integration using Flask-OIDC, Redis caching, and support for PostgreSQL or MySQL as the metadata database.
+A production-ready deployment of Apache Superset with Keycloak OpenID Connect (OIDC) integration using Flask-OIDC, Redis caching, and PostgreSQL database.
 
 ## Features
 
 - 🔐 Secure authentication via Keycloak OIDC using Flask-OIDC
 - 🚀 High-performance setup with Redis caching
-- 📊 Support for PostgreSQL or MySQL as the metadata database
+- 📊 PostgreSQL database for metadata storage
 - 🔄 Automatic user role synchronization
 - 🛡️ Production-ready security configurations
 - 📝 Comprehensive logging and monitoring
 - 🔧 Flexible configuration via environment variables
+- 🌐 Multi-language support (i18n)
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- PostgreSQL or MySQL database (local or remote)
+- PostgreSQL database (local or remote)
 - Keycloak server with OIDC client configured
 - SSL certificates (for production)
 - Python 3.7+ (for Flask-OIDC compatibility)
@@ -66,6 +67,16 @@ SECRET_KEY=your-secret-key
 FLASK_ENV=development
 SUPERSET_WEBSERVER_PORT=8088
 ```
+
+#### Internationalization Configuration
+
+```bash
+# Default language for Superset
+# Available options: en (English), es (Spanish), fr (French), pt (Portuguese), etc.
+BABEL_DEFAULT_LOCALE=en
+```
+
+Note: While Superset supports multiple languages, not all components may be fully translated in every language. English has the most complete translation coverage.
 
 #### Redis Configuration
 
